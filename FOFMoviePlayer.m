@@ -62,7 +62,7 @@
     self.player = [[AVPlayer alloc] init];
     self.playerLayer = [AVPlayerLayer playerLayerWithPlayer:self.player];
     self.playerLayer.backgroundColor = [UIColor grayColor].CGColor;
-    self.playerLayer.videoGravity = AVLayerVideoGravityResizeAspect;
+    self.playerLayer.videoGravity = AVLayerVideoGravityResize;
     [self.layer addSublayer:self.playerLayer];
 
     __weak typeof(self) this = self;
