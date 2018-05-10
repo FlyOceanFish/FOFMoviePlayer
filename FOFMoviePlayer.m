@@ -160,14 +160,12 @@
             self.mLabelTimeLeft.text = [self getMMSSFromSS:(int)CMTimeGetSeconds(_duration)];
             self.mlider.maximumValue = CMTimeGetSeconds(_duration);
             self.mlider.minimumValue = 0;
-            NSLog(@"准备播放");
         } else if (status == AVPlayerItemStatusFailed) {
             AVPlayerItem *item = (AVPlayerItem *)object;
             NSLog(@"%@",item.error);
             NSLog(@"AVPlayerStatusFailed");
         } else {
-            NSLog(@"%@",item.error);
-            NSLog(@"AVPlayerStatusUnknown");
+
         }
     }else if ([keyPath isEqualToString:@"tracking"]){
         NSInteger status = [change[@"new"] integerValue];
@@ -193,9 +191,8 @@
         float durationSeconds = CMTimeGetSeconds(timeRange.duration);
         NSTimeInterval totalBuffer = startSeconds + durationSeconds;//缓冲总长度
         self.mprogressView.progress = totalBuffer/CMTimeGetSeconds(_duration);
-        NSLog(@"当前缓冲时间：%f",totalBuffer);
     }else if ([keyPath isEqualToString:@"playbackBufferEmpty"]){
-        NSLog(@"缓存不够，不能播放！");
+        
     }else if ([keyPath isEqualToString:@"playbackLikelyToKeepUp"]){
         if ([change[@"new"] boolValue]) {
             if (!self.indicator.hidden) {
@@ -203,7 +200,6 @@
                 [self.indicator stopAnimating];
             }
             self.canKeepUp = YES;
-            NSLog(@"缓存的足够多可以播放了！");
         }else{
             self.canKeepUp = NO;
         }
@@ -267,6 +263,5 @@
     [_playItem removeObserver:self forKeyPath:@"playbackLikelyToKeepUp"];
     [_player.currentItem cancelPendingSeeks];
     [_player.currentItem.asset cancelLoading];
-    NSLog(@"顺利销毁");
 }
 @end
