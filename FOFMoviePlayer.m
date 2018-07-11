@@ -2,152 +2,60 @@
 //  FOFMoviePlayer.m
 //  TestAVFoundation
 //
-//  Created by FlyOceanFish on 2018/5/10.
+//  Created by FlyOceanFish on 2018/7/11.
 //  Copyright © 2018年 FlyOceanFish. All rights reserved.
 //
 
 #import "FOFMoviePlayer.h"
-
 @interface FOFMoviePlayer()
 {
-    UIView *_indicatorView;
     AVPlayerLooper *_playerLooper;
+    AVPlayerItem *_playItem;
+    BOOL _loop;
 }
+@property(nonatomic,strong)NSURL *url;
+
+@property(nonatomic,strong)AVPlayer *player;
+@property(nonatomic,strong)AVPlayerLayer *playerLayer;
+@property(nonatomic,strong)AVPlayerItem *playItem;
 
 @property (nonatomic,assign) CMTime duration;
-@property (nonatomic,assign) BOOL canKeepUp;
-
-@property (strong, nonatomic)  UIButton *btn;
-@property (strong, nonatomic)  UILabel *mLabeStart;
-@property (strong, nonatomic)  UILabel *mLabelTimeLeft;
-@property (strong, nonatomic)  UISlider *mlider;
-@property (strong, nonatomic)  UIProgressView *mprogressView;
-
-@property (strong, nonatomic)  UIView *mViewProgress;
-@property (strong, nonatomic)  UIActivityIndicatorView *indicator;
-@property (strong, nonatomic)  UISegmentedControl *mSegmentedControl;
 @end
 @implementation FOFMoviePlayer
 
-- (instancetype)initWithURL:(NSURL *)url{
+-(instancetype)initWithFrame:(CGRect)frame url:(NSURL *)url superLayer:(CALayer *)superLayer{
     self = [super init];
     if (self) {
-        [self initViews];
+        [self initplayers:superLayer];
+        _playerLayer.frame = frame;
         self.url = url;
     }
     return self;
 }
--(void)layoutSubviews{
-    [super layoutSubviews];
-    self.playerLayer.frame = CGRectMake(0, 0,CGRectGetWidth(self.bounds), CGRectGetHeight(self.bounds)-14);
-    [_btn addTarget:self action:@selector(actionPlayPause:) forControlEvents:UIControlEventTouchUpInside];
-    _btn.frame = CGRectMake(CGRectGetWidth(self.playerLayer.bounds)/2-24,CGRectGetHeight(self.playerLayer.bounds)/2-24, 48, 48);
-    [self layoutIndicatorSubviews];
+-(instancetype)initWithFrame:(CGRect)frame url:(NSURL *)url superLayer:(CALayer *)superLayer loop:(BOOL)loop{
+    self = [self initWithFrame:frame url:url superLayer:superLayer];
+    if (self) {
+        _loop = loop;
+    }
+    return self;
 }
--(void)awakeFromNib{
-    [super awakeFromNib];
-    [self initViews];
-}
--(void)setUrl:(NSURL *)url{
-    _url = url;
-    [self.player replaceCurrentItemWithPlayerItem:self.playItem];
-}
-
--(void)initViews{
-    [self initIndicatorView];
-    self.userInteractionEnabled = YES;
-    [self.mlider setThumbImage:[UIImage imageNamed:@"dot"] forState:UIControlStateNormal];
-    [self.mlider addObserver:self forKeyPath:@"tracking" options:NSKeyValueObservingOptionNew context:nil];
-    
+- (void)initplayers:(CALayer *)superLayer{
     self.player = [[AVPlayer alloc] init];
     self.playerLayer = [AVPlayerLayer playerLayerWithPlayer:self.player];
-    self.playerLayer.backgroundColor = [UIColor grayColor].CGColor;
     self.playerLayer.videoGravity = AVLayerVideoGravityResize;
-    [self.layer addSublayer:self.playerLayer];
-
-    __weak typeof(self) this = self;
-    [self.player addPeriodicTimeObserverForInterval:CMTimeMake(1, 12) queue:dispatch_get_main_queue() usingBlock:^(CMTime time) {
-        float currentTime = CMTimeGetSeconds(time);
-        this.mlider.value = currentTime;
-        this.mLabeStart.text = [this getMMSSFromSS:(int)currentTime];
-        this.mLabelTimeLeft.text = [this getMMSSFromSS:(int)(CMTimeGetSeconds(this.duration)-currentTime)];
-        if (fabs(CMTimeGetSeconds(this.duration)-currentTime)<=0.01) {
-            [this replay];
-        }
-    }];
-    
-    
-    _btn = [UIButton buttonWithType:UIButtonTypeCustom];
-    [_btn setImage:[UIImage imageNamed:@"play"] forState:UIControlStateNormal];
-    [_btn setImage:[UIImage imageNamed:@"pause"] forState:UIControlStateSelected];
-    [self addSubview:_btn];
-    
-    self.indicator = [[UIActivityIndicatorView alloc] initWithFrame:_btn.frame];
-    self.indicator.activityIndicatorViewStyle = UIActivityIndicatorViewStyleWhiteLarge;
-    self.indicator.color = [UIColor colorWithRed:23/255.0 green:130/255.0 blue:210/255.9 alpha:1];
-    self.indicator.hidden = YES;
-    [self addSubview:self.indicator];
-    
-    [self.mSegmentedControl addTarget:self action:@selector(segmentedIndexChanged:) forControlEvents:UIControlEventValueChanged];
+    [superLayer addSublayer:self.playerLayer];
 }
-- (void)initIndicatorView{
-    _indicatorView = [[UIView alloc] initWithFrame:CGRectZero];
-    _mLabeStart = [[UILabel alloc] initWithFrame:CGRectZero];
-    _mLabeStart.font = [UIFont systemFontOfSize:11];
-    _mLabeStart.text = @"00:00:00";
-    
-    _mLabelTimeLeft = [[UILabel alloc] initWithFrame:CGRectZero];
-    _mLabelTimeLeft.font = [UIFont systemFontOfSize:11];
-    
-    _mlider = [[UISlider alloc] initWithFrame:CGRectZero];
-    _mlider.minimumTrackTintColor = [UIColor blueColor];
-    _mlider.backgroundColor = [UIColor clearColor];
-    _mlider.maximumTrackTintColor = [UIColor clearColor];
-    
-    _mprogressView = [[UIProgressView alloc] initWithProgressViewStyle:UIProgressViewStyleDefault];
-    _mprogressView.progressTintColor = [UIColor colorWithWhite:0.5 alpha:1];
-    
-    [_indicatorView addSubview:_mLabeStart];
-    [_indicatorView addSubview:_mLabelTimeLeft];
-    [_indicatorView addSubview:_mprogressView];
-    [_indicatorView addSubview:_mlider];
-    [self addSubview:_indicatorView];
-
+- (void)initLoopPlayers:(CALayer *)superLayer{
+    self.player = [[AVQueuePlayer alloc] init];
+    self.playerLayer = [AVPlayerLayer playerLayerWithPlayer:self.player];
+    self.playerLayer.videoGravity = AVLayerVideoGravityResize;
+    [superLayer addSublayer:self.playerLayer];
 }
-- (void)layoutIndicatorSubviews{
-    _indicatorView.frame = CGRectMake(0, CGRectGetHeight(self.playerLayer.bounds), CGRectGetWidth(self.bounds), 15);
-    _mLabeStart.frame = CGRectMake(0, 0, 49, 15);
-    _mLabelTimeLeft.frame = CGRectMake(CGRectGetWidth(self.bounds)-49, 0, 49, 15);
-    float _mliderX = _mLabeStart.frame.origin.x+CGRectGetWidth(_mLabeStart.bounds)+8;
-    _mlider.frame = CGRectMake(_mliderX, 0, CGRectGetWidth(self.bounds)-_mliderX-CGRectGetWidth(_mLabelTimeLeft.bounds)-8, 15);
-    _mprogressView.frame = CGRectMake(_mlider.frame.origin.x+2, (15-2)/2.0, CGRectGetWidth(_mlider.bounds)-8, 2);
+-(void)fof_play{
+    [self.player play];
 }
-#pragma mark - Action
--(void)touchesEnded:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event{
-    UITouch *touch = touches.anyObject;
-    CGPoint point = [touch locationInView:self];
-    CALayer *layer = [self.playerLayer hitTest:point];
-    if (layer) {
-        if (_btn.alpha) {
-            [self animalHide];
-        }else{
-            [self animalShow];
-        }
-    }
-}
-
-- (void)actionPlayPause:(UIButton *)sender {
-    if (sender.selected) {
-        [self.player pause];
-    }else{
-        [self.player play];
-        [self performSelector:@selector(animalHide) withObject:nil afterDelay:1];
-    }
-    sender.selected = !sender.selected;
-}
-
-- (void)segmentedIndexChanged:(UISegmentedControl *)sender{
-    self.player.rate = sender.selectedSegmentIndex+1;
+-(void)fof_pause{
+    [self.player pause];
 }
 
 #pragma mark - Observe
@@ -157,31 +65,30 @@
         AVPlayerItemStatus status = [[change objectForKey:@"new"] intValue]; // 获取更改后的状态
         if (status == AVPlayerItemStatusReadyToPlay) {
             _duration = item.duration;//只有在此状态下才能获取，不能在AVPlayerItem初始化后马上获取
-            self.mLabelTimeLeft.text = [self getMMSSFromSS:(int)CMTimeGetSeconds(_duration)];
-            self.mlider.maximumValue = CMTimeGetSeconds(_duration);
-            self.mlider.minimumValue = 0;
+            NSLog(@"准备播放");
+            if (self.blockStatusReadyPlay) {
+                self.blockStatusReadyPlay();
+            }
         } else if (status == AVPlayerItemStatusFailed) {
+            if (self.blockStatusFailed) {
+                self.blockStatusFailed();
+            }
             AVPlayerItem *item = (AVPlayerItem *)object;
             NSLog(@"%@",item.error);
             NSLog(@"AVPlayerStatusFailed");
         } else {
-
+            self.blockStatusUnknown();
+            NSLog(@"%@",item.error);
+            NSLog(@"AVPlayerStatusUnknown");
         }
     }else if ([keyPath isEqualToString:@"tracking"]){
         NSInteger status = [change[@"new"] integerValue];
-        float slideValue = self.mlider.value;
-        [self.player seekToTime:CMTimeMake(slideValue*_duration.timescale, _duration.timescale) completionHandler:^(BOOL finished) {
-            
-        }];
-        self.mLabeStart.text = [self getMMSSFromSS:(int)slideValue];
-        self.mLabelTimeLeft.text = [self getMMSSFromSS:(int)(CMTimeGetSeconds(_duration)-slideValue)];
-
+        if (self.blockTracking) {
+            self.blockTracking(status);
+        }
         if (status) {//正在拖动
             [self.player pause];
         }else{//停止拖动
-            if (_btn.selected) {
-                [self.player play];
-            }
             
         }
     }else if ([keyPath isEqualToString:@"loadedTimeRanges"]){
@@ -190,21 +97,24 @@
         float startSeconds = CMTimeGetSeconds(timeRange.start);
         float durationSeconds = CMTimeGetSeconds(timeRange.duration);
         NSTimeInterval totalBuffer = startSeconds + durationSeconds;//缓冲总长度
-        self.mprogressView.progress = totalBuffer/CMTimeGetSeconds(_duration);
+        double progress = totalBuffer/CMTimeGetSeconds(_duration);
+        if (self.blockLoadedTimeRanges) {
+            self.blockLoadedTimeRanges(progress);
+        }
+        NSLog(@"当前缓冲时间：%f",totalBuffer);
     }else if ([keyPath isEqualToString:@"playbackBufferEmpty"]){
-        
+        NSLog(@"缓存不够，不能播放！");
     }else if ([keyPath isEqualToString:@"playbackLikelyToKeepUp"]){
-        if ([change[@"new"] boolValue]) {
-            if (!self.indicator.hidden) {
-                self.indicator.hidden = YES;
-                [self.indicator stopAnimating];
-            }
-            self.canKeepUp = YES;
-        }else{
-            self.canKeepUp = NO;
+        if (self.blockPlaybackLikelyToKeepUp) {
+            self.blockPlaybackLikelyToKeepUp([change[@"new"] boolValue]);
         }
     }
     
+}
+
+-(void)setUrl:(NSURL *)url{
+    _url = url;
+    [self.player replaceCurrentItemWithPlayerItem:self.playItem];
 }
 
 -(AVPlayerItem *)playItem{
@@ -217,51 +127,20 @@
     [_playItem addObserver:self forKeyPath:@"playbackBufferEmpty" options:NSKeyValueObservingOptionNew context:nil];
     //    用于监听缓存足够播放的状态
     [_playItem addObserver:self forKeyPath:@"playbackLikelyToKeepUp" options:NSKeyValueObservingOptionNew context:nil];
-
-    //        if ([_playItem canPlayFastForward]) {//只有是true的时候，才能支持2倍速度以上
-    //            [self.mSegmentedControl insertSegmentWithTitle:@"X3" atIndex:2 animated:NO];
-    //            [self.mSegmentedControl insertSegmentWithTitle:@"X4" atIndex:3 animated:NO];
-    //        }
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(private_playerMovieFinish) name:AVPlayerItemDidPlayToEndTimeNotification object:nil];
+    
     return _playItem;
 }
--(NSString *)getMMSSFromSS:(NSInteger)seconds{
-    NSString *str_hour = [NSString stringWithFormat:@"%02ld",seconds/3600];
-    NSString *str_minute = [NSString stringWithFormat:@"%02ld",(seconds%3600)/60];
-    NSString *str_second = [NSString stringWithFormat:@"%02ld",seconds%60];
-    NSString *format_time = [NSString stringWithFormat:@"%@:%@:%@",str_hour,str_minute,str_second];
-    return format_time;
-}
-#pragma mark - Private
-- (void)replay{
-    self.btn.selected = NO;
-    [_player seekToTime:kCMTimeZero];
-    [self animalShow];
-}
-- (void)animalHide{
-    [UIView animateWithDuration:1 animations:^{
-        _btn.alpha = 0;
-        _indicatorView.alpha = 0;
-        if (!self.canKeepUp) {
-            self.indicator.hidden = NO;
-            [self.indicator startAnimating];
-        }
-    }];
-}
-- (void)animalShow{
-    [UIView animateWithDuration:1 animations:^{
-        if (self.indicator.hidden) {
-            _btn.alpha = 1;
-        }
-        _indicatorView.alpha = 1;
-    }];
+- (void)private_playerMovieFinish{
+    NSLog(@"播放结束");
+    if (_loop) {
+        [self.player pause];
+        [self.player seekToTime:CMTimeMake(1, 1) completionHandler:^(BOOL finished) {
+            [self.player play];
+        }];
+    }
 }
 -(void)dealloc{
-    //    需要释放一下资源否则会奔溃
-    [_playItem removeObserver:self forKeyPath:@"status"];
-    [_playItem removeObserver:self forKeyPath:@"loadedTimeRanges"];
-    [_playItem removeObserver:self forKeyPath:@"playbackBufferEmpty"];
-    [_playItem removeObserver:self forKeyPath:@"playbackLikelyToKeepUp"];
-    [_player.currentItem cancelPendingSeeks];
-    [_player.currentItem.asset cancelLoading];
+    NSLog(@"-----销毁-----");
 }
 @end
