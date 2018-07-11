@@ -67,7 +67,7 @@
             _duration = item.duration;//只有在此状态下才能获取，不能在AVPlayerItem初始化后马上获取
             NSLog(@"准备播放");
             if (self.blockStatusReadyPlay) {
-                self.blockStatusReadyPlay();
+                self.blockStatusReadyPlay(item);
             }
         } else if (status == AVPlayerItemStatusFailed) {
             if (self.blockStatusFailed) {

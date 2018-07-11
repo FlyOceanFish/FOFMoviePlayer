@@ -9,7 +9,7 @@
 #import <Foundation/Foundation.h>
 #import <AVFoundation/AVFoundation.h>
 
-typedef void(^BlockStatusReadyPlay)(void);
+typedef void(^BlockStatusReadyPlay)(AVPlayerItem *palyItem);
 typedef void(^BlockStatusFailed)(void);
 typedef void(^BlockStatusUnknown)(void);
 typedef void(^BlockTracking)(NSInteger status);
